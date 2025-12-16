@@ -1,0 +1,12 @@
+.ven
+.env
+env.local
+env
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
