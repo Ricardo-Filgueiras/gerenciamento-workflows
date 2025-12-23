@@ -3,6 +3,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
 from os.path import join
+from utils import extracao 
 
 import pendulum
 import os
