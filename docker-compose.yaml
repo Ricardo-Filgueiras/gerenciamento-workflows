@@ -2,12 +2,14 @@ version: '3'
 
 x-airflow-common: &airflow-common
 
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.5}
+ # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.5}
   build: .
+  image: airflow-custom0327:latest # Usar imagem customizada adicionar nome depois 
   env_file:
     - ${ENV_FILE_PATH:-.env}
   environment:
     &airflow-common-env
+    JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -35,6 +37,8 @@ x-airflow-common: &airflow-common
       condition: service_healthy
     postgres:
       condition: service_healthy
+    networks:
+      - data-lake-network
 
 services:
   postgres:
@@ -51,6 +55,8 @@ services:
       retries: 5
       start_period: 5s
     restart: always
+    networks:
+      - data-lake-network
 
   redis:
     image: redis:7.2-bookworm
@@ -63,6 +69,8 @@ services:
       retries: 50
       start_period: 30s
     restart: always
+    networks:
+      - data-lake-network
 
   airflow-apiserver:
     <<: *airflow-common
@@ -80,6 +88,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    networks:
+      - data-lake-network
 
   airflow-scheduler:
     <<: *airflow-common
@@ -95,6 +105,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    networks:
+      - data-lake-network
 
   airflow-dag-processor:
     <<: *airflow-common
@@ -110,6 +122,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    networks:
+      - data-lake-network
 
   airflow-worker:
     <<: *airflow-common
@@ -135,6 +149,8 @@ services:
         condition: service_healthy
       airflow-init:
         condition: service_completed_successfully
+    networks:
+      - data-lake-network
 
   airflow-triggerer:
     <<: *airflow-common
@@ -150,6 +166,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    networks:
+      - data-lake-network
 
   airflow-init:
     <<: *airflow-common
@@ -242,6 +260,8 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
+    networks:
+      - data-lake-network
 
   airflow-cli:
     <<: *airflow-common
@@ -257,6 +277,8 @@ services:
       - airflow
     depends_on:
       <<: *airflow-common-depends-on
+    networks:
+      - data-lake-network
 
   flower:
     <<: *airflow-common
@@ -276,6 +298,40 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    networks:
+      - data-lake-network
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - data-lake-network
+  # Serviço auxiliar para criar buckets automaticamente
+  minio-init:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc mb myminio/warehouse;
+      /usr/bin/mc mb myminio/raw-data;
+      exit 0;
+      "
+    networks:
+      - data-lake-network
 
 volumes:
   postgres-db-volume:
+  minio_data:   # Adicionado volume do MinIO
+
+networks:
+  data-lake-network: # Adicionado a definição da rede
+    driver: bridge
