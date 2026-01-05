@@ -1,0 +1,20 @@
+# Providers Airflow
+apache-airflow-providers-postgres
+apache-airflow-providers-amazon
+apache-airflow-providers-http
+apache-airflow-providers-apache-spark
+
+# Data & Lakehouse
+pandas
+pyarrow
+sqlalchemy
+psycopg2-binary
+
+
+# Object Storage (MinIO)
+boto3
+
+
+# Utilities
+python-dotenv
+requests
