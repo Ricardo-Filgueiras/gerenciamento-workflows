@@ -18,10 +18,13 @@ def tags(tag):
     historico['acao_tag'] = ticker
     historico.reset_index(inplace=True)
      
-    estou_aqui = os.getcwd()
-    print(estou_aqui)
-    historico.to_json(f"{estou_aqui[0:-12]}data\\{ticker[:4]}.json")
-    historico.to_csv(f"{estou_aqui[0:-12]}data\\{ticker[:4]}.csv")
+    # Caminho absoluto baseado na raiz do projeto
+    project_root = Path(__file__).resolve().parents[2]
+    data_dir = project_root / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    
+    historico.to_json(str(data_dir / f"{ticker[:4]}.json"))
+    historico.to_csv(str(data_dir / f"{ticker[:4]}.csv"))
 
 # criar funcão de extração para múltiplas ações 
 def get_history(ticker, ds=None, ds_nodash=None): 

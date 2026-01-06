@@ -1,29 +1,38 @@
-FROM apache/airflow:2.10.4 
-# Nota: Verifique a versão compatível, usei a 2.10 como exemplo estável, 
-# mas pode manter a 3.x se estiver seguro da estabilidade.
+FROM apache/airflow:2.10.4
 
 USER root
 
-# 1. Instalar OpenJDK-17 (Necessário para o Spark) e utilitários
+# 1. Instalar dependências de sistema (Java para Spark)
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends \
-         openjdk-17-jre-headless \
-         procps \
-  && apt-get autoremove -yqq --purge \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends \
+    openjdk-17-jre-headless \
+    procps \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# 2. Configurar JAVA_HOME
+# 2. Configurar variáveis de ambiente de sistema
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
-# 3. Instalar bibliotecas Python para Spark e MinIO
+# Voltar para o usuário airflow
 USER airflow
+
+# 3. Instalar dependências do projeto
+# Copiar o arquivo de requisitos simplificado
+COPY requirements.txt .
+
+# Instalar apenas as bibliotecas adicionais usando constraints
+ARG PYTHON_VERSION=3.12
+ARG AIRFLOW_VERSION=2.10.4
+RUN pip install --no-cache-dir -r requirements.txt \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+
+# 4. Instalar provedores e bibliotecas adicionais
 RUN pip install --no-cache-dir \
     apache-airflow-providers-apache-spark \
     pyspark==3.5.0 \
     delta-spark==3.0.0 \
     s3fs
 
-# Opcional: Se você quiser os binários completos do Spark dentro do Airflow
-# para submissão local (client mode), teria que baixar e descompactar o TGZ do Spark aqui.
-# Mas instalando o 'pyspark' via pip, ele já traz o binário básico do spark-submit em muitos casos.
+# 5. Verificação de segurança (Usando caminho absoluto para evitar erros de PATH no build)
+RUN /home/airflow/.local/bin/airflow version
